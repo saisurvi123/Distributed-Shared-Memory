@@ -6,6 +6,8 @@ import time
 
 # Global storage for slave connections
 slaves = []
+key_to_slaves = {}  # Dictionary to store which slaves have which keys
+
 
 def handle_slave(conn):
     """Handles incoming messages from slaves."""
@@ -61,28 +63,34 @@ def handle_client(conn):
                 # selected_slave = random.choice(slaves)
                 # # print(selected_slave)
                 # selected_slave.sendall(data.encode())
-                for slave in slaves:
+                selected_slaves = random.sample(slaves,2)
+                key_to_slaves[key] = selected_slaves
+                for slave in selected_slaves:
                     slave.sendall(data.encode())
 
             elif command == "READ":    
-                received_responses = {"received": False, "response": None}
-                threads = []
-
-                for slave in slaves:
-                    thread = threading.Thread(target=send_request_to_slave, args=(slave, data, received_responses))
-                    threads.append(thread)
-                    thread.start()
-                
-                for thread in threads:
-                    thread.join()
-
-                if received_responses["received"]:
-                    print(f"Final response: {received_responses['response']}")
-                    conn.sendall(received_responses["response"].encode())
-                else:
-                    print("No responses received from any slaves.")
+                if key not in key_to_slaves:
+                    print(f"Key {key} not found in any slave.")
                     conn.sendall("NOT_FOUND".encode())
+                else :
+                    received_responses = {"received": False, "response": None}
+                    selected_slaves = key_to_slaves[key]
+                    threads = []
 
+                    for slave in selected_slaves:
+                        thread = threading.Thread(target=send_request_to_slave, args=(slave, data, received_responses))
+                        threads.append(thread)
+                        thread.start()
+                    
+                    for thread in threads:
+                        thread.join()
+
+                    if received_responses["received"]:
+                        print(f"Final response: {received_responses['response']}")
+                        conn.sendall(received_responses["response"].encode())
+                    else:
+                        print("No responses received from any slaves.")
+                        conn.sendall("NOT_FOUND".encode())
                 
         except:
             break
