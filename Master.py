@@ -32,16 +32,13 @@ def send_request_to_slave(slave_socket, request_data, received_responses, timeou
             slave_socket.sendall(request_data.encode())
             
             response = slave_socket.recv(1024).decode()
-            # Parse the response to check if it's valid (not "NOT_FOUND")
+            
             if response:
-                parts = response.split(" ", 1)  # Split response into key and value
-                if len(parts) == 2 and parts[1].strip() != "NOT_FOUND" and not received_responses["received"]:
-                    print(f"Received valid response from a slave: {response}")
-                    received_responses["response"] = response
-                    received_responses["received"] = True
-                    return  # Exit the thread once a valid response is received
-                else:
-                    print(f"Invalid or not found response received: {response}")
+                print(f"Received valid response from a slave: {response}")
+                received_responses["response"] = response
+                received_responses["received"] = True
+                return  # Exit the thread once a valid response is received
+                
         except socket.timeout:
             print("Timeout. Retrying...")
             time.sleep(retry_interval)  # Wait a bit before retrying
