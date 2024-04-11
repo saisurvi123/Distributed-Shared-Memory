@@ -1,71 +1,53 @@
-# import socket
-
-# data_store = {}
-
-# def slave_server():
-#     host = 'localhost'
-#     port = 12345
-#     master_host = 'localhost'
-
-#     with socket.socket() as s:
-#         s.connect((master_host, port))
-#         s.sendall(b"SLAVE")
-        
-#         while True:
-#             data = s.recv(1024).decode()
-#             if not data:
-#                 break
-            
-#             command, key, value = data.split(" ")
-#             if command == "WRITE":
-#                 print(f'writing data {key} {value}')
-#                 data_store[key] = value
-#             elif command == "READ":
-#                 print(f'reading key {key}')
-#                 value = data_store.get(key, "NOT_FOUND")
-#                 print(value)
-#                 response = f"{key} {value}"  # Append termination string
-#                 print(response)
-#                 s.sendall(response.encode())
-
-
-# if __name__ == '__main__':
-#     slave_server()
-
 import socket
-import threading
+import signal
 
 data_store = {}
-lock = threading.Lock()  # Lock for data store access
 
-def slave_server():
-    host = 'localhost'
-    port = 12345
-    master_host = 'localhost'
+def handle_keyboard_interrupt(conn):
+    """Handle keyboard interrupt by sending REMOVESLAVE command to the master."""
+    print("Keyboard interrupt detected. Sending REMOVESLAVE command to master.")
+    try:
+        conn.sendall(b"REMOVESLAVE")
+    except Exception as e:
+        print(f"Error sending REMOVESLAVE command: {e}")
 
-    with socket.socket() as s:
-        s.connect((master_host, port))
-        s.sendall(b"SLAVE")
-        
+def slave_server(conn):
+    # signal.signal(signal.SIGINT, handle_keyboard_interrupt(conn=conn))
+    try:
+        conn.sendall(b"SLAVE")
+            
         while True:
-            data = s.recv(1024).decode()
+            data = conn.recv(1024).decode()
             if not data:
                 break
-            
+                
             command, key, value = data.split(" ")
             if command == "WRITE":
-                print(f'Writing data {key} {value}')
-                with lock:
-                    data_store[key] = value
+                print(f'writing data {key} {value}')
+                data_store[key] = value
             elif command == "READ":
-                print(f'Reading key {key}')
-                with lock:
-                    value = data_store.get(key, "NOT_FOUND")
+                print(f'reading key {key}')
+                value = data_store.get(key, "NOT_FOUND")
+                print(value)
                 response = f"{key} {value}"  # Append termination string
-                print(response)
-                s.sendall(response.encode())
-
+                try:
+                    conn.sendall(response.encode())
+                except Exception as e:
+                    print(f"Error sending response: {e}")
+    except KeyboardInterrupt:
+        handle_keyboard_interrupt(conn)
+        pass  # Ignore keyboard interrupt during normal operation
 
 if __name__ == '__main__':
-    slave_server()
+    host = 'localhost'
+    port = 12345
 
+    # Set up signal handler for keyboard interrupt
+    # signal.signal(signal.SIGINT, handle_keyboard_interrupt(conn=conn))
+
+    try:
+        with socket.socket() as s:
+            s.connect((host, port))
+            slave_server(s)
+    except ConnectionRefusedError:
+        print("Error connecting to the master server.")
