@@ -25,7 +25,12 @@ def slave_server():
                 value = data_store.get(key, "NOT_FOUND")
                 print(value)
                 response = f"{key} {value}"  # Append termination string
-                s.sendall(response.encode())
+                try:
+                    s.sendall(response.encode())
+                except Exception as e:
+                    print(f"Error sending response: {e}")
+
+                
 
 
 if __name__ == '__main__':

@@ -2,7 +2,7 @@ import socket
 import threading
 import random
 import select
-
+import time
 
 # Global storage for slave connections
 slaves = []
@@ -17,6 +17,37 @@ def handle_slave(conn):
         except:
             break
 
+
+def send_request_to_slave(slave_socket, request_data, received_responses, timeout=10, retry_interval=2):
+    """
+    Send a request to a slave continuously until a valid response is received,
+    with a timeout for each attempt and a pause between retries.
+    A valid response is considered as "key value" where value is not "NOT_FOUND".
+    """
+    slave_socket.settimeout(timeout)
+    
+    while not received_responses["received"]:
+        try:
+            print(f"Sending request to slave: {request_data}")
+            slave_socket.sendall(request_data.encode())
+            
+            response = slave_socket.recv(1024).decode()
+            # Parse the response to check if it's valid (not "NOT_FOUND")
+            if response:
+                parts = response.split(" ", 1)  # Split response into key and value
+                if len(parts) == 2 and parts[1].strip() != "NOT_FOUND" and not received_responses["received"]:
+                    print(f"Received valid response from a slave: {response}")
+                    received_responses["response"] = response
+                    received_responses["received"] = True
+                    return  # Exit the thread once a valid response is received
+                else:
+                    print(f"Invalid or not found response received: {response}")
+        except socket.timeout:
+            print("Timeout. Retrying...")
+            time.sleep(retry_interval)  # Wait a bit before retrying
+        except Exception as e:
+            print(f"An error occurred: {e}")
+            break
 
 def handle_client(conn):
     """Handles incoming messages from clients."""
@@ -37,32 +68,25 @@ def handle_client(conn):
                     slave.sendall(data.encode())
 
             elif command == "READ":    
-                print("Sending data to slaves and waiting for responses.")
-                responses = []
-                for slave in slaves:
-                    try:
-                        slave.settimeout(10)  # Set a 10-second timeout for recv operations
-                        slave.sendall(data.encode())
-                        try:
-                            response = slave.recv(1024).decode()
-                            print(response)
-                            if response:  # If a slave sends back a response, add it to the list
-                                responses.append(response)
-                                break  # Break after receiving the first valid response
-                        except socket.timeout:
-                            print("Timed out waiting for a response from a slave.")
-                        finally:
-                            slave.settimeout(None)  # Remove the timeout to return to blocking mode
-                    except Exception as e:
-                        print(f"Error communicating with a slave: {e}")
+                received_responses = {"received": False, "response": None}
+                threads = []
 
-                # If at least one slave responded, send the first valid response back to the client.
-                if responses:
-                    print(f"Sending response to client: {responses[0]}")
-                    conn.sendall(responses[0].encode())
+                for slave in slaves:
+                    thread = threading.Thread(target=send_request_to_slave, args=(slave, data, received_responses))
+                    threads.append(thread)
+                    thread.start()
+                
+                for thread in threads:
+                    thread.join()
+
+                if received_responses["received"]:
+                    print(f"Final response: {received_responses['response']}")
+                    conn.sendall(received_responses["response"].encode())
                 else:
-                    print("No valid responses received from slaves.")
-                    conn.sendall(b"No valid responses received from slaves.")
+                    print("No responses received from any slaves.")
+                    conn.sendall("NOT_FOUND".encode())
+
+                
         except:
             break
 
