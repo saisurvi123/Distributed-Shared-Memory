@@ -22,11 +22,10 @@ def slave_server():
                 data_store[key] = value
             elif command == "READ":
                 print(f'reading key {key}')
-                value = data_store.get(key, None)
-                if value is not None:
-                    s.sendall(f"{key} {value}".encode())
-                else:
-                    s.sendall("NOT_FOUND".encode())  # Optionally handle not found case
+                value = data_store.get(key, "NOT_FOUND")
+                print(value)
+                response = f"{key} {value}"  # Append termination string
+                s.sendall(response.encode())
 
 
 if __name__ == '__main__':

@@ -1,6 +1,8 @@
 import socket
 import threading
 import random
+import select
+
 
 # Global storage for slave connections
 slaves = []
@@ -15,6 +17,7 @@ def handle_slave(conn):
         except:
             break
 
+
 def handle_client(conn):
     """Handles incoming messages from clients."""
     while True:
@@ -27,25 +30,39 @@ def handle_client(conn):
             print(command, key, value)
             if command == "WRITE":
                 # Randomly select a slave to write
-                selected_slave = random.choice(slaves)
-                # print(selected_slave)
-                selected_slave.sendall(data.encode())
-            elif command == "READ":
-                # Assume we have a mechanism to wait for slave responses.
-                # This code simplifies that logic.
-                print(key)
-                responses = []
+                # selected_slave = random.choice(slaves)
+                # # print(selected_slave)
+                # selected_slave.sendall(data.encode())
                 for slave in slaves:
                     slave.sendall(data.encode())
-                    response = slave.recv(1024).decode()
-                    print(response)
-                    if response:  # If a slave sends back a response, add it to the list
-                        responses.append(response)
-                
+
+            elif command == "READ":    
+                print("Sending data to slaves and waiting for responses.")
+                responses = []
+                for slave in slaves:
+                    try:
+                        slave.settimeout(10)  # Set a 10-second timeout for recv operations
+                        slave.sendall(data.encode())
+                        try:
+                            response = slave.recv(1024).decode()
+                            print(response)
+                            if response:  # If a slave sends back a response, add it to the list
+                                responses.append(response)
+                                break  # Break after receiving the first valid response
+                        except socket.timeout:
+                            print("Timed out waiting for a response from a slave.")
+                        finally:
+                            slave.settimeout(None)  # Remove the timeout to return to blocking mode
+                    except Exception as e:
+                        print(f"Error communicating with a slave: {e}")
+
                 # If at least one slave responded, send the first valid response back to the client.
                 if responses:
+                    print(f"Sending response to client: {responses[0]}")
                     conn.sendall(responses[0].encode())
-
+                else:
+                    print("No valid responses received from slaves.")
+                    conn.sendall(b"No valid responses received from slaves.")
         except:
             break
 
