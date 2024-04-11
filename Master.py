@@ -137,11 +137,27 @@ def handle_client(conn):
                 
         except:
             break
+def check_port_in_use(port):
+    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    try:
+        s.bind(("localhost", port))
+    except socket.error as e:
+        if e.errno == socket.errno.EADDRINUSE:
+            print(f"Port {port} is already in use")
+        else:
+            # Handle other socket errors if needed
+            print(f"Error binding to port {port}: {e}")
+        return True
+    finally:
+        s.close()
+    return False
 
 def master_server():
     host = 'localhost'
+    # port = random.randint(1024, 49151) 
     port = 12345
-
+    if(check_port_in_use(port)):
+        port = 12346
     s = socket.socket()
     s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
     s.bind((host, port))

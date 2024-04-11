@@ -1,9 +1,27 @@
 import socket
 import time
+def check_port_in_use(port):
+    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    try:
+        s.bind(("localhost", port))
+    except socket.error as e:
+        if e.errno == socket.errno.EADDRINUSE:
+            print(f"Port {port} is already in use")
+        else:
+            # Handle other socket errors if needed
+            print(f"Error binding to port {port}: {e}")
+        return True
+    finally:
+        s.close()
+    return False
 
 def client():
     host = 'localhost'
     port = 12345
+    # if(check_port_in_use(12345)):
+    #     port = 12345
+    # else:
+    #     port = 12346
 
     with socket.socket() as s:
         s.connect((host, port))
