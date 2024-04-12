@@ -3,6 +3,7 @@ import threading
 import random
 import select
 import time
+from math import ceil
 
 # Global storage for slave connections
 slaves = []
@@ -84,7 +85,9 @@ def handle_client(conn):
             command, key, value = data.split(" ")
             print(command, key, value)
             if command == "WRITE":
-                selected_slaves = random.sample(slaves, 2)  # Randomly select 2 slaves
+                # print(ceil(len(slaves) * 0.5))
+                selected_slaves = random.sample(slaves, ceil(len(slaves) * 0.5))
+                # selected_slaves = random.sample(slaves, 2)
                 key_to_slaves[key] = selected_slaves  # Store selected slaves for this key
                 # for slave in selected_slaves:
                 #     slave.sendall(data.encode())
@@ -156,8 +159,8 @@ def master_server():
     host = 'localhost'
     # port = random.randint(1024, 49151) 
     port = 12345
-    if(check_port_in_use(port)):
-        port = 12346
+    # if(check_port_in_use(port)):
+    #     port = 12346
     s = socket.socket()
     s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
     s.bind((host, port))
