@@ -4,6 +4,7 @@ import random
 import select
 import time
 from math import ceil
+import json
 
 # Global storage for slave connections
 slaves = []
@@ -79,13 +80,14 @@ def handle_client(conn):
     while True:
         try:
             data = conn.recv(1024).decode()
+            print("Received from Client: ", data)
             if not data:
                 break
             
             command, key, value = data.split(" ")
             print(command, key, value)
             if command == "WRITE":
-                # print(ceil(len(slaves) * 0.5))
+                # print(ceil(len(slaves) * 0.5))def send_message(host, port, message):
                 selected_slaves = random.sample(slaves, ceil(len(slaves) * 0.5))
                 # selected_slaves = random.sample(slaves, 2)
                 key_to_slaves[key] = selected_slaves  # Store selected slaves for this key
@@ -114,6 +116,23 @@ def handle_client(conn):
                 else:
                     print("Write operation successful.")
                     conn.sendall("WRITE_DONE".encode())
+                # try:
+                #     port1 = 12345
+                #     if(check_port_in_use(12345)):
+                #         port1 = 12346
+                #     else:
+                #         break
+                #     host = 'localhost'
+                #     # message = f"REMOVESLAVE"
+                #     s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                #     s.connect((host, port1))
+                #     # message = json.dumps({"slaves": slaves, "key_to_slaves": key_to_slaves})
+                #     message = "BACKUP"
+                #     s.sendall(message.encode())
+                #     s.close()
+                #     print(f"Message '{message}' sent to {host}:{port1}")
+                # except Exception as e:
+                #     print(f"Error sending message: {e}")
             elif command == "READ":    
                 if key not in key_to_slaves:
                     print(f"Key {key} not found in any slave.")
@@ -140,6 +159,18 @@ def handle_client(conn):
                 
         except:
             break
+
+def handle_backup(conn):
+    """Handles incoming messages from clients."""
+    while True:
+        try:
+            data = conn.recv(1024).decode()
+            if not data:
+                break
+            if data == "BACKUP":
+                print("Backup server connected.")
+        except:
+            break
 def check_port_in_use(port):
     s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     try:
@@ -159,8 +190,8 @@ def master_server():
     host = 'localhost'
     # port = random.randint(1024, 49151) 
     port = 12345
-    # if(check_port_in_use(port)):
-    #     port = 12346
+    if(check_port_in_use(port)):
+        port = 12346
     s = socket.socket()
     s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
     s.bind((host, port))
@@ -174,9 +205,12 @@ def master_server():
 
             # Determine if connected entity is a slave or a client based on initial message
             data = conn.recv(1024).decode()
+            print("Siuu: ",data)
             if data == "SLAVE":
                 slaves.append(conn)
                 threading.Thread(target=handle_slave, args=(conn,)).start()
+            elif data == "BACKUP":
+                print("Backup server connected.")
             else:
                 threading.Thread(target=handle_client, args=(conn,)).start()
     except KeyboardInterrupt:

@@ -24,12 +24,15 @@ def connect_to_master(host, port):
             s = socket.socket()
             if(not check_port_in_use(port)):
                 port = port+1
-            s.connect((host, port))
-            s.sendall(b"SLAVE")
-            return s
+                s = connect_to_master(host, port)
+                return s
+            else:
+                s.connect((host, port))
+                s.sendall(b"SLAVE")
+                return s
         except Exception as e:
             print(f"Error connecting to master server on port {port}: {e}")
-            port = port + 1
+            # port = port + 1
             s = connect_to_master(host, port)
             print("Retrying in 5 seconds...")
             time.sleep(5)
