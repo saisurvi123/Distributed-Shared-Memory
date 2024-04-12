@@ -22,6 +22,7 @@ def client():
                     value = input("Enter value: ")
                     print(f"Sending WRITE operation for {key} with value {value}")
                     s.sendall(f"{operation} {key} {value}".encode())
+                    response = s.recv(1024).decode()
                 elif operation == 'READ':
                     print(f"Sending READ operation for {key}")
                     s.sendall(f"{operation} {key} ".encode())  # Note the space at the end to match split expectation

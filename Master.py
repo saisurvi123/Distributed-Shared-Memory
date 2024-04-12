@@ -48,6 +48,31 @@ def send_request_to_slave(slave_socket, request_data, received_responses, timeou
             print(f"An error occurred: {e}")
             break
 
+def rec_ack_from_slave(slave_socket, request_data, received_responses, timeout=10, retry_interval=2):
+    """
+    Receive acknowledgment from a slave continuously until a valid response is received,
+    with a timeout for each attempt and a pause between retries.
+    A valid response is considered as "ACK".
+    """
+    slave_socket.settimeout(timeout)
+    
+    while not received_responses[slave_socket]:
+        try:
+            print(f"Waiting for acknowledgment from slave: {request_data}")
+            slave_socket.sendall(request_data.encode())
+            response = slave_socket.recv(1024).decode()
+            
+            if response:
+                print(f"Acknowledgment received from a slave: {response}")
+                received_responses[slave_socket] = True
+                return  # Exit the thread once a valid response is received
+                
+        except socket.timeout:
+            print("Timeout. Retrying...")
+            time.sleep(retry_interval)  # Wait a bit before retrying
+        except Exception as e:
+            print(f"An error occurred: {e}")
+            break
 def handle_client(conn):
     """Handles incoming messages from clients."""
     while True:
@@ -59,15 +84,33 @@ def handle_client(conn):
             command, key, value = data.split(" ")
             print(command, key, value)
             if command == "WRITE":
-                # Randomly select a slave to write
-                # selected_slave = random.choice(slaves)
-                # # print(selected_slave)
-                # selected_slave.sendall(data.encode())
-                selected_slaves = random.sample(slaves,2)
-                key_to_slaves[key] = selected_slaves
-                for slave in selected_slaves:
-                    slave.sendall(data.encode())
+                selected_slaves = random.sample(slaves, 2)  # Randomly select 2 slaves
+                key_to_slaves[key] = selected_slaves  # Store selected slaves for this key
+                # for slave in selected_slaves:
+                #     slave.sendall(data.encode())
+                received_responses = {slave: False for slave in selected_slaves}
 
+                threads = []
+                for slave in selected_slaves:
+                    thread = threading.Thread(target=rec_ack_from_slave, args=(slave, data, received_responses))
+                    threads.append(thread)
+                    thread.start()
+
+                for thread in threads:
+                    thread.join()
+
+                not_received_slaves = [slave for slave, ack in received_responses.items() if not ack]
+                if not_received_slaves:
+                    print("No acknowledgment received from some slaves. Removing them.")
+                    for slave in not_received_slaves:
+                        slaves.remove(slave)
+                        for key, value in key_to_slaves.items():
+                            if slave in value:
+                                key_to_slaves[key].remove(slave)
+                    conn.sendall("WRITE_DONE".encode())
+                else:
+                    print("Write operation successful.")
+                    conn.sendall("WRITE_DONE".encode())
             elif command == "READ":    
                 if key not in key_to_slaves:
                     print(f"Key {key} not found in any slave.")

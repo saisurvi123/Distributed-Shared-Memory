@@ -20,6 +20,11 @@ def slave_server():
             if command == "WRITE":
                 print(f'writing data {key} {value}')
                 data_store[key] = value
+                response = f"{key} {value} ACK"
+                try:
+                    s.sendall(response.encode())
+                except Exception as e:
+                    print(f"Error sending ACK: {e}")
             elif command == "READ":
                 print(f'reading key {key}')
                 value = data_store.get(key, "NOT_FOUND")
