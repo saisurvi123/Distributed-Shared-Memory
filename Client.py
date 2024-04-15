@@ -51,7 +51,7 @@ def client():
                 # response = s.recv(1024).decode()
                 if operation == 'EXIT':
                     print("Exiting client.")
-                    break
+                    return
                 elif operation in ['WRITE', 'READ']:
                     key = input("Enter key: ")
                     if operation == 'WRITE':
