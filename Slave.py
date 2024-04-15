@@ -18,6 +18,7 @@ def check_port_in_use(port):
         s.close()
     return False
 
+
 def connect_to_master(host, port):
     while True:
         try:
@@ -35,13 +36,12 @@ def connect_to_master(host, port):
             # port = port + 1
             s = connect_to_master(host, port)
             print("Retrying in 5 seconds...")
-            time.sleep(5)
-
+            time.sleep(50)
 def slave_server():
     host = 'localhost'
     port = 12345 if check_port_in_use(12345) else 12346
     master_host = 'localhost'
-
+    connected = False
     while True:
         try:
             s = connect_to_master(master_host, port)
@@ -77,7 +77,7 @@ def slave_server():
         except Exception as ex:
             print(f"Error in slave server loop: {ex}")
             print("Retrying connection...")
-            time.sleep(5)
+            time.sleep(50)
 
 if __name__ == '__main__':
     slave_server()
