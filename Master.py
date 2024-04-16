@@ -6,6 +6,7 @@ import time
 from math import ceil
 import json
 from collections import Counter
+from termcolor import colored
 
 # Global storage for slave connections
 slaves = []
@@ -52,13 +53,14 @@ def send_request_to_slave(slave_socket, request_data, received_responses, timeou
     
     while not received_responses["received"]:
         try:
-            print(f"Sending request to slave: {request_data}")
+            # print(f"Sending request to slave: {request_data}")
+            print(colored(f"Sending request to slave: {request_data}", 'cyan'))
             slave_socket.sendall(request_data.encode())
             
             response = slave_socket.recv(1024).decode()
             
             if response:
-                print(f"Received valid response from a slave: {response}")
+                print(colored(f"Received valid response from a slave: {response}", 'green'))
                 received_responses["response"] = response
                 received_responses["received"] = True
                 return  # Exit the thread once a valid response is received
@@ -74,13 +76,15 @@ def send_requests_to_all_slaves(slave_socket, request_data, received_responses, 
     
     while not received_responses[slave_socket]:
         try:
-            print(f"Sending request to slave: {request_data}")
+            # print(f"Sending request to slave: {request_data}")
+            print(colored(f"Sending request to slave: {request_data}", 'cyan'))
             slave_socket.sendall(request_data.encode())
             
             response = slave_socket.recv(1024).decode()
             
             if response:
-                print(f"Received valid response from a slave: {response}")
+                # print(f"Received valid response from a slave: {response}")
+                print(colored(f"Received valid response from a slave: {response}", 'green'))
                 received_responses[slave_socket] = response
                 return  # Exit the thread once a valid response is received
                 
@@ -100,15 +104,16 @@ def rec_ack_from_slave(slave_socket, request_data, received_responses, timeout=1
     
     while not received_responses[slave_socket]:
         try:
-            print(f"Waiting for acknowledgment from slave: {request_data}")
+            print(f"Waiting for acknowledgment from slave")
             slave_socket.sendall(request_data.encode())
             response = slave_socket.recv(1024).decode()
             
             if response:
-                print(f"Acknowledgment received from a slave: {response}")
+                # print(f"Acknowledgment received from a slave: {response}")
+                print(colored(f"Acknowledgment received from a slave: {response}", 'green'))
                 received_responses[slave_socket] = True
                 return  # Exit the thread once a valid response is received
-                
+            
         except socket.timeout:
             print("Timeout. Retrying...")
             time.sleep(retry_interval)  # Wait a bit before retrying
@@ -120,12 +125,13 @@ def handle_client(conn):
     while True:
         try:
             data = conn.recv(1024).decode()
-            print("Received from Client: ", data)
+            # print("Received from Client: ", data)
+            print(colored(f"Received from Client: {data}", 'yellow'))
             if not data:
                 break
             
             command, key, value = data.split(" ")
-            print(command, key, value)
+            # print(command, key, value)
             if command == "WRITE":
                 # print(ceil(len(slaves) * 0.5))def send_message(host, port, message):
                 selected_slaves = random.sample(slaves, ceil(len(slaves) * 0.5))
@@ -154,7 +160,8 @@ def handle_client(conn):
                                 key_to_slaves[key].remove(slave)
                     conn.sendall("WRITE_DONE".encode())
                 else:
-                    print("Write operation successful.")
+                    # print("Write operation successful.")
+                    print(colored("Write operation successful.", 'cyan'))
                     conn.sendall("WRITE_DONE".encode())
                 # if(backup == False):
                 #     try:
@@ -178,8 +185,8 @@ def handle_client(conn):
                 if key not in key_to_slaves:
                     # print(f"Key {key} not found in any slave.")
                     # conn.sendall("NOT_FOUND".encode())
-                    print("Going into the loop")
-                    print(len(slaves))
+                    # print("Going into the loop")
+                    # print(len(slaves))
                     threads = []
                     rec_response = {slave: None for slave in slaves}
                     for slave in slaves:
@@ -220,10 +227,12 @@ def handle_client(conn):
                         thread.join()
 
                     if received_responses["received"]:
-                        print(f"Final response: {received_responses['response']}")
+                        key, value = received_responses["response"].split(" ")
+                        print(colored(f"Final response: {value}", 'cyan'))
                         conn.sendall(received_responses["response"].encode())
                     else:
                         print("No responses received from any slaves.")
+                        print(colored(f"Final response: NOT_FOUND", 'cyan'))
                         conn.sendall("NOT_FOUND".encode())
                 
         except:
@@ -274,7 +283,10 @@ def master_server():
 
             # Determine if connected entity is a slave or a client based on initial message
             data = conn.recv(1024).decode()
-            print("Siuu: ",data)
+            if(data == "CLIENT"):
+                print(colored("Client connected.", 'yellow'))
+            elif data == "SLAVE":
+                print(colored("Slave connected.", 'green'))
             if data == "SLAVE":
                 slaves.append(conn)
                 threading.Thread(target=handle_slave, args=(conn,)).start()

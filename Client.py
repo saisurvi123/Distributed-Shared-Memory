@@ -1,5 +1,7 @@
 import socket
 import time
+from termcolor import colored
+
 def check_port_in_use(port):
     s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     try:
@@ -43,6 +45,7 @@ def client():
             # s = connect_to_master(host, port)
             s = socket.socket()
             s.connect((host, port))
+            print(colored("Connected to master server", 'yellow'))
             s.sendall(b"CLIENT")
             while True:
                 # Ask the user for the operation they want to perform
@@ -56,19 +59,22 @@ def client():
                     key = input("Enter key: ")
                     if operation == 'WRITE':
                         value = input("Enter value: ")
-                        print(f"Sending WRITE operation for {key} with value {value}")
+                        print(colored(f"Sending WRITE operation for {key} with value {value}", 'yellow'))  # Color the message in yellow
                         s.sendall(f"{operation} {key} {value}".encode())
                         response = s.recv(1024).decode()
+                        print(colored(f"Response from server: {response}", 'cyan'))  # Color the response in light blue
                     elif operation == 'READ':
-                        print(f"Sending READ operation for {key}")
+                        print(colored(f"Sending READ operation for {key}", 'yellow'))
                         s.sendall(f"{operation} {key} ".encode())  # Note the space at the end to match split expectation
                         response = s.recv(1024).decode()
-                        print(f"Response from server: {response}")
+                        key, value = response.split()
+                        print(colored(f"Response from server: {value}", 'cyan'))  # Color the response in light blue
                 else:
                     print("Invalid operation. Please try again.")
                 time.sleep(1)
         except socket.timeout:
             print("Timeout. Retrying...")
+            retry_interval = 2
             time.sleep(retry_interval) 
         except Exception as e:
             print(f"Error connecting to master server on port {port}: {e}")
