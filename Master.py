@@ -3,11 +3,31 @@ import threading
 import random
 import select
 import time
+import pickle
 
 # Global storage for slave connections
 slaves = []
 key_to_slaves = {}  # Dictionary to store which slaves have which keys
+backup_master_conn = None  # Connection to the backup master
 
+def connect_to_backup_master():
+    global backup_master_conn
+    backup_host = 'localhost'  # Adjust as necessary
+    backup_port = 12346        # Backup master's listening port
+    backup_master_conn = socket.create_connection((backup_host, backup_port))
+    print("Connected to backup master.")
+
+def send_update_to_backup(key, slaves):
+    """Send updates to the backup master for a specific key and its corresponding slave list."""
+    if backup_master_conn:
+        try:
+            # Prepare a serializable list of slave identifiers (IP addresses and ports)
+            slave_identifiers = [slave.getpeername() for slave in slaves]
+            update_data = pickle.dumps((key, slave_identifiers))
+            backup_master_conn.sendall(update_data)
+            print(f"Sent update for key {key} to backup master.")
+        except Exception as e:
+            print(f"Failed to send update to backup master: {e}")
 
 def handle_slave(conn):
     """Handles incoming messages from slaves."""
@@ -111,6 +131,8 @@ def handle_client(conn):
                 else:
                     print("Write operation successful.")
                     conn.sendall("WRITE_DONE".encode())
+                send_update_to_backup(key,key_to_slaves[key])  # Send update after WRITE operation
+
             elif command == "READ":    
                 if key not in key_to_slaves:
                     print(f"Key {key} not found in any slave.")
@@ -146,6 +168,8 @@ def master_server():
     s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
     s.bind((host, port))
     s.listen(5)
+    connect_to_backup_master()  # Establish connection to backup master
+
 
     print("Master Server Started.")
     try:
