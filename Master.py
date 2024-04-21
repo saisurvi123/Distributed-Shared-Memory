@@ -134,7 +134,7 @@ def handle_client(conn):
             # print(command, key, value)
             if command == "WRITE":
                 # print(ceil(len(slaves) * 0.5))def send_message(host, port, message):
-                selected_slaves = random.sample(slaves, ceil(len(slaves) * 0.5))
+                selected_slaves = random.sample(slaves, ceil((len(slaves)+1.0) * 0.5))
                 # selected_slaves = random.sample(slaves, 2)
                 key_to_slaves[key] = selected_slaves  # Store selected slaves for this key
                 # for slave in selected_slaves:
